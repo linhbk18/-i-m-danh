@@ -4,7 +4,7 @@
  * stored; only the backend keeps ArcFace vectors until "Hoàn tất đăng ký". */
 (() => {
   'use strict';
-  const FRAME_INTERVAL_MS = 150;           // ~6 frames/s max, one in flight
+  const FRAME_INTERVAL_MS = 80;            // ~12.5 frames/s max, one in flight
   const FRAME_WIDTH = 640;
   const CAMERA_HELP = {
     NotAllowedError: 'Bạn đã từ chối quyền camera. Nhấn biểu tượng camera/ổ khóa bên trái thanh địa chỉ → chọn "Cho phép" camera, rồi nhấn "Bật lại camera".',

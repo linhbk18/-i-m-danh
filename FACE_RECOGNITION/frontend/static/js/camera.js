@@ -187,7 +187,7 @@
       $("capture-state").textContent="Đã phân tích "+completed+" ảnh · "+data.profile;
       if(data.face_errors)message("Có khuôn mặt chưa xử lý được. Xem Terminal backend.","error");
       else if(!lastErrorAt)message(data.faces.length&&!tracks.lastApply.linked?"Khuôn mặt đã thay đổi hoặc kết quả đã cũ. Đang chờ nhận diện mới.":data.automatic_attendance?.changed?'Đã lưu Có mặt tự động vào SQLite.':data.automatic_attendance?.enabled?'Tự động đang bật: sinh viên thuộc lớp cần được xác minh ổn định ('+(data.automatic_attendance.status?.policy?.required_consistent_results??5)+'/'+(data.automatic_attendance.status?.policy?.consistency_window??7)+' lần) trước khi lưu.':(data.automatic_attendance?.status?.message||'Đã cập nhật kết quả nhận diện.'),"info");
-      delay=data.faces.length&&!tracks.lastApply.linked?0:needsVerification?250:Math.max(1200,Math.min(3000,metrics.http_ms*.2));
+      delay=data.faces.length&&!tracks.lastApply.linked?0:needsVerification?150:Math.max(800,Math.min(2200,metrics.http_ms*.15));
     }catch(error){
       if(epoch!==generation||!running)return;
       tracks.reset();failures++;lastErrorAt=performance.now();clearIdentity();$("capture-state").textContent="Chưa có kết quả · đang chờ thử lại";$("recognition-state").textContent=error.name==="AbortError"?"Quá thời gian chờ":"Lỗi nhận diện";

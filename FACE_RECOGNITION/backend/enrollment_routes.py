@@ -75,7 +75,7 @@ def enrollment_blueprint(store, engine, config_path=None, backup_dir=None):
     @bp.get('/api/enrollment/config')
     def public_config():
         return jsonify(poses=cfg['poses'], pose_timeout_s=cfg['collection']['pose_timeout_s'],
-                       frame_interval_ms=150, max_frame_dimension=cfg['collection']['max_frame_dimension'],
+                       frame_interval_ms=100, max_frame_dimension=cfg['collection']['max_frame_dimension'],
                        total_required=sum(p['samples'] for p in cfg['poses']))
 
     @bp.get('/api/enrollment/code-status')
