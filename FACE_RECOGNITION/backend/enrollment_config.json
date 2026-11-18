@@ -6,31 +6,31 @@
       "key": "front",
       "label": "Nhìn thẳng",
       "instruction": "Nhìn thẳng vào camera, giữ đầu thẳng.",
-      "samples": 1
+      "samples": 4
     },
     {
       "key": "left",
       "label": "Quay trái",
       "instruction": "Từ từ quay đầu sang bên TRÁI của bạn.",
-      "samples": 1
+      "samples": 4
     },
     {
       "key": "right",
       "label": "Quay phải",
       "instruction": "Từ từ quay đầu sang bên PHẢI của bạn.",
-      "samples": 1
+      "samples": 4
     },
     {
       "key": "up",
       "label": "Ngẩng nhẹ",
       "instruction": "Ngẩng mặt lên nhẹ, mắt vẫn hướng về camera.",
-      "samples": 1
+      "samples": 4
     },
     {
       "key": "down",
       "label": "Cúi nhẹ",
       "instruction": "Cúi mặt xuống nhẹ, mắt vẫn hướng về camera.",
-      "samples": 1
+      "samples": 4
     }
   ],
   "pose_ranges_deg": {
@@ -66,22 +66,22 @@
     },
     "up": {
       "yaw": [
-        -15,
-        15
+        -18,
+        18
       ],
       "pitch": [
-        12,
-        30
+        6,
+        32
       ]
     },
     "down": {
       "yaw": [
-        -15,
-        15
+        -18,
+        18
       ],
       "pitch": [
-        -30,
-        -12
+        -32,
+        -6
       ]
     }
   },

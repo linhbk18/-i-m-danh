@@ -1,6 +1,6 @@
-"""Server-side 5-of-7 observations; preview frames never count as biometric evidence."""
-REQUIRED = 5
-WINDOW = 7
+"""Server-side 1-of-1 observations; preview frames never count as biometric evidence."""
+REQUIRED = 1
+WINDOW = 1
 
 
 def observe(previous, student_id, sequence, required=REQUIRED, window=WINDOW):

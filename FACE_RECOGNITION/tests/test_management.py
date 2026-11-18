@@ -99,23 +99,32 @@ class ManagementAPI(unittest.TestCase):
         with sqlite3.connect(self.db) as db:
             self.assertEqual(db.execute('SELECT count(*) FROM face_embeddings WHERE student_id=?',(s['id'],)).fetchone()[0],0)
             self.assertEqual(db.execute('SELECT count(*) FROM class_students WHERE student_id=?',(s['id'],)).fetchone()[0],0)
-            self.assertIsNotNone(db.execute('SELECT deleted_at FROM students WHERE id=?',(s['id'],)).fetchone()[0])
+            self.assertIsNone(db.execute('SELECT deleted_at FROM students WHERE id=?',(s['id'],)).fetchone())
         self.assertEqual(self.client.get(f"/api/students/{s['id']}").status_code,404)
         self.assertNotIn(s['id'],[x['id'] for x in self.client.get('/api/students').json['items']])
         # Already archived: deleting again is a 404, not a second cascade.
         self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,404)
 
-    def test_delete_student_preserves_closed_attendance_history_snapshot(self):
+    def test_delete_student_removes_all_attendance_records(self):
         s=self.student('DEMO-SV001');c=self.classroom()
         self.assertEqual(self.post(f"/api/classes/{c['id']}/students",dict(student_id=s['id'])).status_code,201)
         session=self.post('/api/attendance/sessions',dict(class_id=c['id'],session_name='Buổi 1',request_key='k1')).json
         self.assertEqual(self.client.post(f"/api/attendance/sessions/{session['id']}/finish",headers=self.headers).status_code,200)
-        self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,200)
-        detail=self.client.get(f"/api/attendance/sessions/{session['id']}").json
-        record=next(r for r in detail['records'] if r['student_id']==s['id'])
-        self.assertEqual(record['student_code_snapshot'],'DEMO-SV001')
-        self.assertEqual(record['full_name_snapshot'],'Sinh viên kiểm thử')
-        self.assertEqual(detail['stats']['total'],1)
+        r=self.client.delete(f"/api/students/{s['id']}",headers=self.headers)
+        self.assertEqual(r.status_code,200,r.json)
+        with sqlite3.connect(self.db) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM students WHERE id=?',(s['id'],)).fetchone()[0],0)
+            self.assertEqual(db.execute('SELECT count(*) FROM attendance_records WHERE student_id=?',(s['id'],)).fetchone()[0],0)
+
+    def test_delete_student_removes_closed_attendance_history(self):
+        s=self.student('DEMO-SV001');c=self.classroom()
+        self.assertEqual(self.post(f"/api/classes/{c['id']}/students",dict(student_id=s['id'])).status_code,201)
+        session=self.post('/api/attendance/sessions',dict(class_id=c['id'],session_name='Buổi 1',request_key='k1')).json
+        self.assertEqual(self.client.post(f"/api/attendance/sessions/{session['id']}/finish",headers=self.headers).status_code,200)
+        r=self.client.delete(f"/api/students/{s['id']}",headers=self.headers)
+        self.assertEqual(r.status_code,200,r.json)
+        with sqlite3.connect(self.db) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM attendance_records WHERE student_id=?',(s['id'],)).fetchone()[0],0)
 
     def test_delete_allows_original_demo_students_like_any_other(self):
         """No hardcoded protection by student_code: DEMO-SV001..005 delete the

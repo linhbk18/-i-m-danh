@@ -141,12 +141,9 @@ class ManagementStore:
         return self.detail(kind,identity)
 
     def delete(self,kind,identity):
-        """Archive (soft-delete) a row; attendance history keeps its own snapshot columns.
-
-        Students cascade automatically: membership in every class and all face
-        embeddings are removed in the same transaction, so the caller never has to
-        unlink classes one by one first. Classes are unchanged: still blocked while
-        they have members, so a class delete never silently drops a student's data.
+        """Delete a row. Students are hard-deleted with memberships, embeddings,
+        legacy mappings and attendance records in the same transaction.
+        Classes remain soft-deleted and stay blocked while they have members.
         """
         with self.connection() as db:
             db.execute('BEGIN IMMEDIATE')
@@ -155,12 +152,26 @@ class ManagementStore:
             if kind=='students':
                 classes_removed=db.execute('SELECT count(*) FROM class_students WHERE student_id=?',(identity,)).fetchone()[0]
                 faces_removed=db.execute('SELECT count(*) FROM face_embeddings WHERE student_id=?',(identity,)).fetchone()[0]
+                attendance_removed=0
+                attendance_edits_removed=0
+                has_records=db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='attendance_records'").fetchone()
+                record_ids=[r[0] for r in db.execute('SELECT id FROM attendance_records WHERE student_id=?',(identity,)).fetchall()] if has_records else []
+                attendance_removed=len(record_ids)
+                if record_ids:
+                    placeholders=','.join('?' for _ in record_ids)
+                    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='attendance_edits'").fetchone():
+                        attendance_edits_removed=db.execute(f'DELETE FROM attendance_edits WHERE record_id IN ({placeholders})',record_ids).rowcount
+                    if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='attendance_auto_audit'").fetchone():
+                        db.execute(f'DELETE FROM attendance_auto_audit WHERE record_id IN ({placeholders})',record_ids)
+                    db.execute(f'DELETE FROM attendance_records WHERE id IN ({placeholders})',record_ids)
                 db.execute('DELETE FROM class_students WHERE student_id=?',(identity,))
                 db.execute('DELETE FROM face_embeddings WHERE student_id=?',(identity,))
                 db.execute('DELETE FROM legacy_mappings WHERE student_id=?',(identity,))
-                db.execute('UPDATE students SET deleted_at=?,updated_at=? WHERE id=?',(stamp,stamp,identity))
+                db.execute('DELETE FROM students WHERE id=?',(identity,))
                 self.bump(db)
-                return dict(classes_removed=classes_removed,faces_removed=faces_removed)
+                return dict(classes_removed=classes_removed,faces_removed=faces_removed,
+                            attendance_records_removed=attendance_removed,
+                            attendance_edits_removed=attendance_edits_removed)
             if db.execute('SELECT 1 FROM class_students WHERE class_id=?',(identity,)).fetchone():
                 raise DomainError('Hãy gỡ các liên kết lớp–sinh viên trước khi xóa hồ sơ.',409)
             db.execute('UPDATE classes SET deleted_at=?,updated_at=? WHERE id=?',(stamp,stamp,identity))
@@ -297,7 +308,6 @@ class ManagementStore:
             db.execute('BEGIN IMMEDIATE')
             student_id=db.execute('INSERT INTO students(student_code,full_name,created_at,updated_at) VALUES (?,?,?,?)',(fields['student_code'],fields['full_name'],stamp,stamp)).lastrowid
             if class_id is not None:
-                self.require(db,'classes',class_id)
                 db.execute('INSERT INTO class_students(class_id,student_id) VALUES (?,?)',(class_id,student_id))
             ids=self._insert_samples(db,student_id,samples,pipeline,enrollment_id,stamp)
             self.bump(db)
@@ -339,3 +349,18 @@ class ManagementStore:
     def camera_samples(self,student_id):
         with self.connection() as db:
             return [dict(r) for r in db.execute('SELECT pose_label,count(*) AS n FROM face_embeddings WHERE student_id=? AND enrollment_id IS NOT NULL GROUP BY pose_label',(student_id,))]
+
+    def hard_delete(self,student_id):
+        """Hard-delete a student and every student-owned database data in one transaction.
+
+        This is different from archive (soft-delete): no trace of the student remains,
+        and any attempt to access the student or related data will fail.
+        """
+        with self.connection() as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.require(db,'students',student_id)
+            db.execute('DELETE FROM students WHERE id=?',(student_id,))
+            db.execute('DELETE FROM class_students WHERE student_id=?',(student_id,))
+            db.execute('DELETE FROM face_embeddings WHERE student_id=?',(student_id,))
+            db.execute('DELETE FROM legacy_mappings WHERE student_id=?',(student_id,))
+            self.bump(db)

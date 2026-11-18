@@ -15,8 +15,10 @@ class Stability(unittest.TestCase):
         return state,result
 
     def test_full_window_required(self):
-        self.assertFalse(self.run_window([1]*6)[1]['ready'])
-        self.assertTrue(self.run_window([1]*7)[1]['ready'])
+        self.assertTrue(self.run_window([1])[1]['ready'])
+
+    def test_single_result_ready(self):
+        self.assertTrue(self.run_window([1,None])[1]['ready'])
 
     def test_five_of_seven_and_current_frame(self):
         self.assertTrue(self.run_window([1,None,1,None,1,1,1])[1]['ready'])

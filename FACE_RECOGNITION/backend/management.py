@@ -51,7 +51,7 @@ def management_blueprint(store,engine,token):
             if request.method=='GET': return jsonify(store.detail(kind,identity))
             if request.method=='DELETE':
                 cascade=store.delete(kind,identity)
-                payload=dict(deleted=True,archived=True)
+                payload=dict(deleted=True,archived=False)
                 if kind=='students':
                     payload.update(cascade or {});payload['gallery_updated']=refresh()
                 return jsonify(payload)

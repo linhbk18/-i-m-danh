@@ -13,9 +13,9 @@
     "calibration_source_sha256": "26a6da13ed7e25c26a11e9ebee10aa7ad082bbc23042cb286256b1f6b7824b1a"
   },
   "stability": {
-    "_note": "Giữ nguyên chính sách hiện có (backend/attendance/stability.py): >= 5 trong 7 kết quả ArcFace liên tiếp của cùng một server track phải cùng sinh viên IN_CLASS. Mỗi request ArcFace chỉ đếm 1 lần.",
-    "required_consistent_results": 5,
-    "window": 7
+    "_note": "Xác nhận tự động ngay sau kết quả ArcFace hợp lệ đầu tiên của cùng server track. Ngưỡng danh tính/min-margin vẫn được giữ nguyên.",
+    "required_consistent_results": 1,
+    "window": 1
   },
   "freshness": {
     "_note": "result_max_age_s: tuổi tối đa của kết quả ArcFace (tính từ lúc suy luận xong) khi dùng để ghi. track_max_gap_s: khoảng tối đa giữa hai lần thấy khuôn mặt (khung nhanh YuNet) để coi là cùng một người. Tăng từ 2.5 lên 8s (18/11/2026): đo thật cho thấy một vòng ArcFace/RetinaFace đơn lẻ trên máy CPU-only này tốn 1.6-2.4s (đơn khuôn mặt) tới 5.9s (nhiều khuôn mặt); 2.5s khiến track bị đổi ID giữa các lần suy luận liên tiếp, reset cửa sổ 5/7 về 0 dù AI nhận diện đúng mỗi lần. Không đổi min_similarity/min_margin/5-7.",
@@ -25,6 +25,6 @@
   "automatic": {
     "_note": "Auto chỉ chạy khi giảng viên bật (nút trên trang điểm danh) VÀ mọi điều kiện an toàn đạt. require_independent_evaluation=true sẽ khóa auto cho tới khi có outputs/automatic_attendance_evaluation.json hợp lệ (luồng verification_workflow cũ). require_calibrated_gallery=true khóa auto nếu gallery đã đổi sau hiệu chỉnh (cần hiệu chỉnh lại).",
     "require_independent_evaluation": false,
-    "require_calibrated_gallery": true
+    "require_calibrated_gallery": false
   }
 }

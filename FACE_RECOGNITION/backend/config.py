@@ -15,7 +15,7 @@ class Config:
     REQUEST_TIMEOUT_MS = 120000
     TRUSTED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
     TESTING = False
-    AUTO_ATTENDANCE_ENABLED = False
+    AUTO_ATTENDANCE_ENABLED = True
     # Photo upload/manual capture enrollment is retired in favour of live camera
     # enrollment (backend/enrollment_routes.py). Kept only for legacy QA scripts.
     LEGACY_PHOTO_UPLOAD_ENABLED = False
