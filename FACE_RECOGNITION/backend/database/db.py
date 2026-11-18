@@ -141,15 +141,30 @@ class ManagementStore:
         return self.detail(kind,identity)
 
     def delete(self,kind,identity):
+        """Archive (soft-delete) a row; attendance history keeps its own snapshot columns.
+
+        Students cascade automatically: membership in every class and all face
+        embeddings are removed in the same transaction, so the caller never has to
+        unlink classes one by one first. Classes are unchanged: still blocked while
+        they have members, so a class delete never silently drops a student's data.
+        """
         with self.connection() as db:
+            db.execute('BEGIN IMMEDIATE')
             self.require(db,kind,identity)
-            column='student_id' if kind=='students' else 'class_id'
-            if db.execute(f'SELECT 1 FROM class_students WHERE {column}=?',(identity,)).fetchone():
+            stamp=now()
+            if kind=='students':
+                classes_removed=db.execute('SELECT count(*) FROM class_students WHERE student_id=?',(identity,)).fetchone()[0]
+                faces_removed=db.execute('SELECT count(*) FROM face_embeddings WHERE student_id=?',(identity,)).fetchone()[0]
+                db.execute('DELETE FROM class_students WHERE student_id=?',(identity,))
+                db.execute('DELETE FROM face_embeddings WHERE student_id=?',(identity,))
+                db.execute('DELETE FROM legacy_mappings WHERE student_id=?',(identity,))
+                db.execute('UPDATE students SET deleted_at=?,updated_at=? WHERE id=?',(stamp,stamp,identity))
+                self.bump(db)
+                return dict(classes_removed=classes_removed,faces_removed=faces_removed)
+            if db.execute('SELECT 1 FROM class_students WHERE class_id=?',(identity,)).fetchone():
                 raise DomainError('Hãy gỡ các liên kết lớp–sinh viên trước khi xóa hồ sơ.',409)
-            if kind=='students' and db.execute('SELECT 1 FROM face_embeddings WHERE student_id=?',(identity,)).fetchone():
-                raise DomainError('Sinh viên đã có dữ liệu khuôn mặt; không cho phép xóa hồ sơ.',409)
-            # Archive instead of physically deleting future historical references.
-            db.execute(f'UPDATE {kind} SET deleted_at=?,updated_at=? WHERE id=?',(now(),now(),identity))
+            db.execute('UPDATE classes SET deleted_at=?,updated_at=? WHERE id=?',(stamp,stamp,identity))
+            return None
 
     def membership(self,class_id,student_id,remove=False):
         if isinstance(student_id,bool) or not isinstance(student_id,int) or student_id<=0: raise DomainError('Mã hồ sơ sinh viên không hợp lệ.')

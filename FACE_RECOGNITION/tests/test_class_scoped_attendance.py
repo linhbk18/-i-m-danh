@@ -204,6 +204,35 @@ class ClassScopedAttendance(unittest.TestCase):
         self.assertEqual((stats['present'], stats['pending'], stats['total']), (1, 1, 2))
         self.assertEqual(self.audit_rows(), 1)  # no duplicate while the student stays in view
 
+    # ------------------------------------------------------------------ Test 1b
+    def test_1b_realistic_inference_latency_still_reaches_auto_present(self):
+        """Regression for the 2026-11-18 continuity fix: a 4s delay per ArcFace
+        call exceeds the OLD 3s/2.5s track-matching window (which silently
+        started a new track id and reset the 5-of-7 count to zero every time)
+        but is within today's real measured single-face latency range
+        (1.6-2.4s) plus margin. With the fix (8s window) the student must
+        still reach stable 5-of-7 and get auto-written, just slower.
+        self.pipeline.delay simulates ArcFace/RetinaFace wall-clock time; it
+        is not a real model call, so this is not evidence of ArcFace accuracy
+        -- only that continuity tracking survives realistic latency.
+        """
+        sid = self.begin(self.class_a)
+        self.assertEqual(self.auto(True).status_code, 200)
+        cam = self.camera(sid)
+        self.pipeline.delay = 4.0
+        try:
+            writes = []
+            for i in range(1, 8):
+                body = self.frame(cam, [('DEMO-SV001', BOXES[0])]).json
+                writes.append(body['automatic_attendance']['changed'])
+                if i < 7:
+                    self.assertIsNone(self.record(sid, 'DEMO-SV001')['attendance_status'])
+        finally:
+            self.pipeline.delay = 0.0
+        self.assertTrue(writes[6], writes)
+        row = self.record(sid, 'DEMO-SV001')
+        self.assertEqual(row['attendance_status'], 'PRESENT')
+
     # ------------------------------------------------------------------ Test 2
     def test_2_registered_but_not_in_class_is_red_unknown(self):
         sid = self.begin(self.class_a)  # class A does NOT contain DEMO-SV003

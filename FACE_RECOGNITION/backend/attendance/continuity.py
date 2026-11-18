@@ -43,7 +43,7 @@ class Continuity:
         self.aspect=aspect
         observations=[dict(box=box(f,frame)) for f in faces]
         for o in observations:o['signature']=self.signature(image,o['box'])
-        matches=[[t for t in self.tracks if 0<=at-t['at']<3 and iou(o['box'],t['box'])>=.6
+        matches=[[t for t in self.tracks if 0<=at-t['at']<8 and iou(o['box'],t['box'])>=.6
             and self.difference(o['signature'],t['signature'])<.065 and self.difference(o['signature'],t['anchor'])<.1] for o in observations]
         new=[]
         for o,m in zip(observations,matches):
@@ -55,9 +55,9 @@ class Continuity:
     def snapshot(self,image,at):
         if not self.aspect or abs(image.shape[1]/image.shape[0]-self.aspect)>.01:return []
         return [dict(id=t['id'],box=t['box'],signature=self.signature(image,t['box']),captured_at=at)
-            for t in self.tracks if 0<=at-t['at']<2.5 and self.difference(self.signature(image,t['box']),t['signature'])<.065]
+            for t in self.tracks if 0<=at-t['at']<8 and self.difference(self.signature(image,t['box']),t['signature'])<.065]
 
-    def valid(self,saved,now,max_gap=2.5):
+    def valid(self,saved,now,max_gap=8):
         current=next((t for t in self.tracks if t['id']==saved['id']),None)
         return bool(current and 0<=now-current['at']<max_gap and 0<=now-saved['captured_at']<=30
             and self.difference(saved['signature'],current['signature'])<.065)

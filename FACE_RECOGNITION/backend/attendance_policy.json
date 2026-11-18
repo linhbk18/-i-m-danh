@@ -18,9 +18,9 @@
     "window": 7
   },
   "freshness": {
-    "_note": "result_max_age_s: tuổi tối đa của kết quả ArcFace (tính từ lúc suy luận xong) khi dùng để ghi. track_max_gap_s: khoảng tối đa giữa hai lần thấy khuôn mặt (khung nhanh YuNet) để coi là cùng một người.",
+    "_note": "result_max_age_s: tuổi tối đa của kết quả ArcFace (tính từ lúc suy luận xong) khi dùng để ghi. track_max_gap_s: khoảng tối đa giữa hai lần thấy khuôn mặt (khung nhanh YuNet) để coi là cùng một người. Tăng từ 2.5 lên 8s (18/11/2026): đo thật cho thấy một vòng ArcFace/RetinaFace đơn lẻ trên máy CPU-only này tốn 1.6-2.4s (đơn khuôn mặt) tới 5.9s (nhiều khuôn mặt); 2.5s khiến track bị đổi ID giữa các lần suy luận liên tiếp, reset cửa sổ 5/7 về 0 dù AI nhận diện đúng mỗi lần. Không đổi min_similarity/min_margin/5-7.",
     "result_max_age_s": 2.0,
-    "track_max_gap_s": 2.5
+    "track_max_gap_s": 8
   },
   "automatic": {
     "_note": "Auto chỉ chạy khi giảng viên bật (nút trên trang điểm danh) VÀ mọi điều kiện an toàn đạt. require_independent_evaluation=true sẽ khóa auto cho tới khi có outputs/automatic_attendance_evaluation.json hợp lệ (luồng verification_workflow cũ). require_calibrated_gallery=true khóa auto nếu gallery đã đổi sau hiệu chỉnh (cần hiệu chỉnh lại).",

@@ -207,19 +207,19 @@ def create_app(engine=None, start_models=True, overrides=None):
             session['cancelled'].set()
         return jsonify(stopped=True, note='Không nhận khung mới; tác vụ native đang chạy sẽ kết thúc tại điểm hủy an toàn.')
 
-    def recognition_response(session,result,sequence,snapshot,received_at,inference_started,result_at):
+    def recognition_response(session,result,sequence,snapshot,received_at,inference_started,result_at,context):
         """Classify every face on the BACKEND and auto-write PRESENT when allowed.
 
         Pipeline: ArcFace global top-1/top-2 -> similarity+margin policy -> numeric
         student_id -> enrollment of the open session's class (fresh SQLite read
-        AFTER inference) -> current-track binding -> 5-of-7 stability -> write.
+        BEFORE inference, passed in by the caller so it is fetched once per
+        request, not twice) -> current-track binding -> 5-of-7 stability -> write.
         The raw internal face records never leave this function.
         """
         policy=service.verification_policy
         max_age=policy.result_max_age_s if policy.valid else 0
         max_gap=policy.track_max_gap_s if policy.valid else 0
         attendance_id=session.get('attendance_id')
-        context=attendance.context(attendance_id) if attendance_id is not None else None
         roster=set(context['student_ids']) if context else None
         auto=automation_status(session['profile']) if context else None
         raw=result['faces']
@@ -338,7 +338,7 @@ def create_app(engine=None, start_models=True, overrides=None):
             if preview:
                 with sessions_guard:session['continuity'].update(result['faces'],result['frame'],bgr,received_at)
             else:
-                result=recognition_response(session,result,sequence,snapshot,received_at,inference_started,result_at)
+                result=recognition_response(session,result,sequence,snapshot,received_at,inference_started,result_at,attendance_context)
             result.setdefault('timings_ms',{})['decode_ms']=decode_ms
             serialize_start=perf_counter()
             response=jsonify(result)

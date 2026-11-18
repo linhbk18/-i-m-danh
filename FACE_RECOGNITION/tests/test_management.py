@@ -77,9 +77,52 @@ class ManagementAPI(unittest.TestCase):
         self.assertEqual(self.post(f"/api/classes/{c2['id']}/students",dict(student_id=s['id'])).status_code,201)
         self.assertEqual(len(self.client.get(f"/api/students/{s['id']}").json['classes']),2)
         self.assertEqual(self.client.delete(f"/api/classes/{c['id']}",headers=self.headers).status_code,409)
-        self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,409)
+        # Explicitly unlinking one class (not deleting the student) only drops that one.
         self.assertEqual(self.client.delete(url+f"/{s['id']}",headers=self.headers).status_code,200)
         self.assertEqual(self.client.get(f"/api/students/{s['id']}").status_code,200)
+        self.assertEqual(len(self.client.get(f"/api/students/{s['id']}").json['classes']),1)
+
+    def test_delete_student_cascades_from_all_classes_and_removes_embeddings(self):
+        s=self.student();c1=self.classroom('CASCADE-A');c2=self.classroom('CASCADE-B')
+        self.assertEqual(self.post(f"/api/classes/{c1['id']}/students",dict(student_id=s['id'])).status_code,201)
+        self.assertEqual(self.post(f"/api/classes/{c2['id']}/students",dict(student_id=s['id'])).status_code,201)
+        self.assertEqual(self.upload(s['id']).status_code,201)
+        self.assertEqual(self.client.get('/api/overview').json['registered_students'],1)
+        refreshed_before=self.engine.refreshed
+        r=self.client.delete(f"/api/students/{s['id']}",headers=self.headers)
+        self.assertEqual(r.status_code,200,r.json)
+        self.assertEqual((r.json['classes_removed'],r.json['faces_removed'],r.json['gallery_updated']),(2,1,True))
+        self.assertGreater(self.engine.refreshed,refreshed_before)
+        self.assertEqual(self.client.get(f"/api/classes/{c1['id']}").json['student_count'],0)
+        self.assertEqual(self.client.get(f"/api/classes/{c2['id']}").json['student_count'],0)
+        self.assertEqual(self.client.get('/api/overview').json['registered_students'],0)
+        with sqlite3.connect(self.db) as db:
+            self.assertEqual(db.execute('SELECT count(*) FROM face_embeddings WHERE student_id=?',(s['id'],)).fetchone()[0],0)
+            self.assertEqual(db.execute('SELECT count(*) FROM class_students WHERE student_id=?',(s['id'],)).fetchone()[0],0)
+            self.assertIsNotNone(db.execute('SELECT deleted_at FROM students WHERE id=?',(s['id'],)).fetchone()[0])
+        self.assertEqual(self.client.get(f"/api/students/{s['id']}").status_code,404)
+        self.assertNotIn(s['id'],[x['id'] for x in self.client.get('/api/students').json['items']])
+        # Already archived: deleting again is a 404, not a second cascade.
+        self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,404)
+
+    def test_delete_student_preserves_closed_attendance_history_snapshot(self):
+        s=self.student('DEMO-SV001');c=self.classroom()
+        self.assertEqual(self.post(f"/api/classes/{c['id']}/students",dict(student_id=s['id'])).status_code,201)
+        session=self.post('/api/attendance/sessions',dict(class_id=c['id'],session_name='Buổi 1',request_key='k1')).json
+        self.assertEqual(self.client.post(f"/api/attendance/sessions/{session['id']}/finish",headers=self.headers).status_code,200)
+        self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,200)
+        detail=self.client.get(f"/api/attendance/sessions/{session['id']}").json
+        record=next(r for r in detail['records'] if r['student_id']==s['id'])
+        self.assertEqual(record['student_code_snapshot'],'DEMO-SV001')
+        self.assertEqual(record['full_name_snapshot'],'Sinh viên kiểm thử')
+        self.assertEqual(detail['stats']['total'],1)
+
+    def test_delete_allows_original_demo_students_like_any_other(self):
+        """No hardcoded protection by student_code: DEMO-SV001..005 delete the
+        same way as any other profile once the teacher confirms."""
+        for code in ('DEMO-SV001','DEMO-SV002','DEMO-SV003','DEMO-SV004','DEMO-SV005'):
+            s=self.student(code)
+            self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,200,code)
 
     def test_required_fields_bad_ids_and_write_guard(self):
         for data in ({},dict(student_code='',full_name='A'),dict(student_code='X',full_name=''),[]):
@@ -91,7 +134,7 @@ class ManagementAPI(unittest.TestCase):
         self.assertEqual(self.post(f"/api/classes/{c['id']}/students",dict(student_id=True)).status_code,400)
         self.assertEqual(self.post(f"/api/classes/{c['id']}/students",dict(student_id=999)).status_code,404)
 
-    def test_enrollment_persists_vectors_no_public_vector_and_protects_student(self):
+    def test_enrollment_persists_vectors_and_no_public_vector_leaks(self):
         s=self.student();r=self.upload(s['id'])
         self.assertEqual(r.status_code,201,r.json)
         self.assertNotIn('embedding',r.json)
@@ -99,7 +142,6 @@ class ManagementAPI(unittest.TestCase):
         self.assertEqual(self.engine.refreshed,1)
         self.assertEqual(self.upload(s['id']).status_code,409)
         self.assertEqual(self.upload(s['id'],jpeg((321,180))).status_code,201)
-        self.assertEqual(self.client.delete(f"/api/students/{s['id']}",headers=self.headers).status_code,409)
         # A fresh app/connection sees the same persisted data; no in-memory DB.
         restarted=create_app(EnrollmentFake(),start_models=False,overrides={'DATABASE_PATH':self.db}).test_client()
         self.assertEqual(restarted.get(f"/api/students/{s['id']}").json['face_count'],2)

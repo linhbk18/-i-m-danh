@@ -6,31 +6,31 @@
       "key": "front",
       "label": "Nhìn thẳng",
       "instruction": "Nhìn thẳng vào camera, giữ đầu thẳng.",
-      "samples": 4
+      "samples": 2
     },
     {
       "key": "left",
       "label": "Quay trái",
       "instruction": "Từ từ quay đầu sang bên TRÁI của bạn.",
-      "samples": 3
+      "samples": 2
     },
     {
       "key": "right",
       "label": "Quay phải",
       "instruction": "Từ từ quay đầu sang bên PHẢI của bạn.",
-      "samples": 3
+      "samples": 2
     },
     {
       "key": "up",
       "label": "Ngẩng nhẹ",
       "instruction": "Ngẩng mặt lên nhẹ, mắt vẫn hướng về camera.",
-      "samples": 3
+      "samples": 2
     },
     {
       "key": "down",
       "label": "Cúi nhẹ",
       "instruction": "Cúi mặt xuống nhẹ, mắt vẫn hướng về camera.",
-      "samples": 3
+      "samples": 2
     }
   ],
   "pose_ranges_deg": {
@@ -120,7 +120,7 @@
     "crop_max_dimension": 0,
     "_crop_note": "0 = không thu nhỏ vùng cắt. Thử trên ảnh thật: thu nhỏ còn 400/320 px làm cosine với embedding gốc giảm (tới ~0.87), nên giữ độ phân giải gốc.",
     "box_match_min_iou": 0.3,
-    "_timing_note": "Đo thật trên máy này (outputs/face_enrollment/real_ai_check.json): ~10-12 s/mẫu (RetinaFace ~9.5 s, ArcFace ~0.5 s). Vì vậy 16 mẫu và timeout 90 s; tăng số mẫu khi chạy trên máy mạnh hơn."
+    "_timing_note": "Đo thật trên máy này (outputs/face_enrollment/real_ai_check.json): ~10-12 s/mẫu (RetinaFace ~9.5 s, ArcFace ~0.5 s). Vì vậy 10 mẫu và timeout 90 s; tăng số mẫu khi chạy trên máy mạnh hơn."
   },
   "verification": {
     "other_student_warning_cosine": 0.5,

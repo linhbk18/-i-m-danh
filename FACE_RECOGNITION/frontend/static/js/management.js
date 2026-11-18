@@ -85,8 +85,14 @@
     try{
       if(action==='new'||action==='edit'){await openEditor(kind,action==='edit'?id:null);return;}
       if(action==='delete'){
-        if(!confirm('Xóa hồ sơ này khỏi danh sách? Hồ sơ còn liên kết hoặc dữ liệu khuôn mặt sẽ được bảo vệ.'))return;
-        await send(`/api/${kind}/${id}`,'DELETE');await render();notice('Đã lưu trữ hồ sơ. Dữ liệu không bị xóa vĩnh viễn.');
+        const question=kind==='students'
+          ?'Xóa sinh viên này? Sẽ tự động gỡ khỏi TẤT CẢ lớp đang tham gia và xóa toàn bộ dữ liệu khuôn mặt (gallery AI cập nhật ngay). Lịch sử điểm danh các buổi đã qua vẫn được giữ nguyên. Không thể hoàn tác.'
+          :'Xóa lớp này? Chỉ xóa được khi lớp không còn sinh viên nào.';
+        if(!confirm(question))return;
+        const result=await send(`/api/${kind}/${id}`,'DELETE');await render();
+        notice(kind==='students'
+          ?`Đã xóa sinh viên: gỡ khỏi ${result.classes_removed??0} lớp, xóa ${result.faces_removed??0} embedding. Lịch sử điểm danh cũ vẫn được giữ.`
+          :'Đã lưu trữ hồ sơ. Dữ liệu không bị xóa vĩnh viễn.');
       }else if(action==='remove-member'||action==='remove-class'){
         if(!confirm('Gỡ sinh viên khỏi lớp? Hồ sơ sinh viên và dữ liệu khuôn mặt vẫn được giữ.'))return;
         await send(`/api/classes/${action==='remove-class'?id:identity}/students/${action==='remove-class'?identity:id}`,'DELETE');await render();notice('Đã gỡ liên kết lớp–sinh viên.');
